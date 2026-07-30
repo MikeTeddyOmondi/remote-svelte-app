@@ -1,0 +1,18 @@
+# Worker-scoped vars, read by `wrangler dev` (pnpm preview).
+#
+# Why this file exists separately from .env:
+#   `vite dev`     -> $env/dynamic/private resolves from .env
+#   `wrangler dev` -> $env/dynamic/private resolves from the Worker env (.dev.vars)
+#   production     -> Worker env: `vars` in wrangler.jsonc + `wrangler secret put`
+# Keeping only .env is why auth worked in dev and broke everywhere else.
+
+ORIGIN="http://localhost:5173"
+
+# Generate with: openssl rand -base64 32
+BETTER_AUTH_SECRET=""
+
+# Locci OpenAuth (https://auth.locci.cloud)
+# Register redirect URI: <ORIGIN>/api/auth/oauth2/callback/locci-auth
+# LOCCI_CLIENT_SECRET is optional — leave empty for a public PKCE client.
+LOCCI_CLIENT_ID=""
+LOCCI_CLIENT_SECRET=""

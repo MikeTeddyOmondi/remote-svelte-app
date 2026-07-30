@@ -1,0 +1,43 @@
+{
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"rewriteRelativeImportExtensions": true,
+		"allowJs": true,
+		// Off deliberately. The only hand-written .js file is svelte.config.js;
+		// leaving this on also type-checks the generated bundles that the
+		// Cloudflare adapter emits into .svelte-kit/ (35 errors in files nobody
+		// wrote), and those cannot simply be deleted — `wrangler types` embeds a
+		// reference to .svelte-kit/cloudflare/_worker in its hash.
+		"checkJs": false,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"moduleResolution": "bundler",
+		// Single generated file, at the path `wrangler types --check` verifies.
+		// Regenerate with `pnpm gen` after changing bindings or vars.
+		"types": ["./worker-configuration.d.ts", "node"]
+	},
+	// With `checkJs`, the generated bundles under .svelte-kit would otherwise be
+	// type-checked once `pnpm build` has run. Note this only governs `tsc` and
+	// the IDE — `svelte-check` discovers files by walking the filesystem and
+	// ignores `exclude`, which is why `pnpm check` runs `pnpm clean` first.
+	//
+	// Paths must NOT be `./`-prefixed here or the globs silently fail to match.
+	// Specifying `exclude` overrides the one inherited from
+	// ./.svelte-kit/tsconfig.json, so its service-worker entries are repeated.
+	"exclude": [
+		"node_modules/**",
+		".svelte-kit/output/**",
+		".svelte-kit/cloudflare/**",
+		".svelte-kit/cloudflare-tmp/**",
+		"src/service-worker.js",
+		"src/service-worker/**/*.js",
+		"src/service-worker.ts",
+		"src/service-worker/**/*.ts",
+		"src/service-worker.d.ts",
+		"src/service-worker/**/*.d.ts"
+	]
+}
