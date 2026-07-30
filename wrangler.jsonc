@@ -16,14 +16,18 @@
     "enabled": true
   },
   /**
-   * Attaches the custom domain on deploy. Requires `mt0.dev` to be a zone on
-   * this same Cloudflare account — if it is not, `wrangler deploy` fails; drop
-   * this block and `vars.ORIGIN` below, and `createAuth` falls back to the
-   * request origin (the *.workers.dev URL).
+   * Attaches the custom domain on deploy. Requires `locci.cloud` to be a zone
+   * on this same Cloudflare account.
+   *
+   * The host must sit under `locci.cloud` for Locci sign-in to work: the
+   * OpenAuth issuer at auth.locci.cloud uses the default `allow`, which permits
+   * a redirect_uri only when its hostname matches the issuer's last two labels
+   * (or is localhost). `remote-svelte-app.mt0.dev` was rejected with
+   * `unauthorized_client` for exactly this reason.
    */
   "routes": [
     {
-      "pattern": "remote-svelte-app.mt0.dev",
+      "pattern": "remote-svelte-app.locci.cloud",
       "custom_domain": true
     }
   ],
@@ -51,9 +55,10 @@
   ],
   "vars": {
     // Production origin; overridden by .dev.vars locally. Better Auth derives
-    // its cookie and CSRF checks from this, and the Locci redirect URI must be
-    // https://remote-svelte-app.mt0.dev/api/auth/oauth2/callback/locci-auth
-    "ORIGIN": "https://remote-svelte-app.mt0.dev",
+    // its cookies, CSRF checks, and the OAuth redirect_uri from this, so it has
+    // to move in lockstep with `routes` above:
+    // https://remote-svelte-app.locci.cloud/api/auth/oauth2/callback/locci-auth
+    "ORIGIN": "https://remote-svelte-app.locci.cloud",
     // Public OAuth identifier, not a secret — it travels in the authorize URL.
     // Also what `isLocciEnabled` keys off to render the sign-in button.
     // The client secret stays unset: Locci is a public PKCE client.

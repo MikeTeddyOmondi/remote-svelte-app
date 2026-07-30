@@ -83,7 +83,7 @@ issuer must accept **every** one you use:
 | Environment | `redirect_uri` sent to Locci |
 | --- | --- |
 | `pnpm dev` | `http://localhost:5173/api/auth/oauth2/callback/locci-auth` |
-| production | `https://remote-svelte-app.mt0.dev/api/auth/oauth2/callback/locci-auth` |
+| production | `https://remote-svelte-app.locci.cloud/api/auth/oauth2/callback/locci-auth` |
 
 > `pnpm preview` runs `wrangler dev` on **:8787**, but `.dev.vars` sets `ORIGIN` to :5173 — and
 > `ORIGIN` wins over the request origin. To exercise Locci under `preview`, set
@@ -141,8 +141,15 @@ Run `pnpm gen` whenever you change bindings or vars in `wrangler.jsonc` or add a
 
 ## Deploying
 
-Live at **https://remote-svelte-app.mt0.dev**. The custom domain is attached by the `routes` block in
-`wrangler.jsonc`; it requires `mt0.dev` to be a zone on the same Cloudflare account.
+Live at **https://remote-svelte-app.locci.cloud**. The custom domain is attached by the `routes` block
+in `wrangler.jsonc`; it requires `locci.cloud` to be a zone on the same Cloudflare account.
+
+> **The host must stay under `locci.cloud`.** The OpenAuth issuer at `auth.locci.cloud` does not
+> define an `allow` callback, so it uses OpenAuth's default: a `redirect_uri` is permitted only if its
+> hostname is `localhost`/`127.0.0.1`, or shares the issuer's last two labels. The app was first
+> deployed to `remote-svelte-app.mt0.dev` and every Locci sign-in failed with `unauthorized_client`.
+> Moving it under `locci.cloud` is what fixed it — `ORIGIN` and `routes` must move together, since
+> `ORIGIN` is what derives the `redirect_uri`.
 
 ```sh
 pnpm run deploy   # NOT `pnpm deploy`
