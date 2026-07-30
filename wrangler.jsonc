@@ -53,7 +53,11 @@
     // Production origin; overridden by .dev.vars locally. Better Auth derives
     // its cookie and CSRF checks from this, and the Locci redirect URI must be
     // https://remote-svelte-app.mt0.dev/api/auth/oauth2/callback/locci-auth
-    "ORIGIN": "https://remote-svelte-app.mt0.dev"
+    "ORIGIN": "https://remote-svelte-app.mt0.dev",
+    // Public OAuth identifier, not a secret — it travels in the authorize URL.
+    // Also what `isLocciEnabled` keys off to render the sign-in button.
+    // The client secret stays unset: Locci is a public PKCE client.
+    "LOCCI_CLIENT_ID": "remote-svelte-app"
   }
   /**
    * Environment Variables
