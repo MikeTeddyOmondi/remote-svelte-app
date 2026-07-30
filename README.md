@@ -73,14 +73,21 @@ nowhere to fetch a profile from. `src/lib/server/locci.ts` therefore supplies a 
 that verifies the ES256-signed access token against the issuer's JWKS and reads the subject's
 `properties` claim.
 
-To enable it, set `LOCCI_CLIENT_ID` and register this redirect URI with the issuer:
+To enable it, set `LOCCI_CLIENT_ID`. The button only renders when a client ID is configured, and
+`LOCCI_CLIENT_SECRET` stays empty for a public PKCE client.
 
-```
-<ORIGIN>/api/auth/oauth2/callback/locci-auth
-```
+Better Auth derives the callback from `baseURL` — `${baseURL}/api/auth/oauth2/callback/locci-auth` —
+and `baseURL` is `ORIGIN || <request origin>`. So the `redirect_uri` differs per environment, and the
+issuer must accept **every** one you use:
 
-`LOCCI_CLIENT_SECRET` is optional — leave it empty for a public PKCE client. The button only renders
-when a client ID is configured.
+| Environment | `redirect_uri` sent to Locci |
+| --- | --- |
+| `pnpm dev` | `http://localhost:5173/api/auth/oauth2/callback/locci-auth` |
+| production | `https://remote-svelte-app.mt0.dev/api/auth/oauth2/callback/locci-auth` |
+
+> `pnpm preview` runs `wrangler dev` on **:8787**, but `.dev.vars` sets `ORIGIN` to :5173 — and
+> `ORIGIN` wins over the request origin. To exercise Locci under `preview`, set
+> `ORIGIN=http://localhost:8787` in `.dev.vars` and register that URI too.
 
 > The Locci subject **must** carry an `email` claim; Better Auth requires one on the user row.
 > `getLocciUserInfo` throws a descriptive error rather than inventing a placeholder address.
@@ -117,7 +124,7 @@ pending branch during SSR and only fill in after hydration, leaving the page emp
 | `pnpm db:migrate:local` / `db:migrate:remote` | apply migrations |
 | `pnpm db:studio:local` / `db:studio:remote` | Drizzle Studio against local miniflare D1 / deployed D1 |
 | `pnpm auth:schema` | regenerate the Better Auth Drizzle schema |
-| `pnpm deploy` | build and deploy |
+| `pnpm run deploy` | build and deploy — **`pnpm deploy` will not work**, see below |
 
 ### A note on `pnpm check`
 
@@ -131,6 +138,62 @@ output honest:
   hash it verifies, so removing that directory makes `wrangler types --check` fail.
 
 Run `pnpm gen` whenever you change bindings or vars in `wrangler.jsonc` or add a key to `.dev.vars`.
+
+## Deploying
+
+Live at **https://remote-svelte-app.mt0.dev**. The custom domain is attached by the `routes` block in
+`wrangler.jsonc`; it requires `mt0.dev` to be a zone on the same Cloudflare account.
+
+```sh
+pnpm run deploy   # NOT `pnpm deploy`
+```
+
+> `pnpm deploy` is a **built-in pnpm command** for deploying a workspace package. Because this repo has
+> a `pnpm-workspace.yaml`, pnpm intercepts it and fails with `ERR_PNPM_NOTHING_TO_DEPLOY` — it never
+> reaches the `deploy` script. Always use `pnpm run deploy`.
+
+### Production configuration
+
+| Value | Where | Notes |
+| --- | --- | --- |
+| `ORIGIN` | `vars` in `wrangler.jsonc` | Drives Better Auth's cookies, CSRF, and the OAuth `redirect_uri` |
+| `LOCCI_CLIENT_ID` | `vars` in `wrangler.jsonc` | Public OAuth identifier, not a secret |
+| `BETTER_AUTH_SECRET` | `wrangler secret put` | Takes effect immediately, no redeploy |
+| `LOCCI_CLIENT_SECRET` | — | Unset: Locci is a public PKCE client |
+| `CLOUDFLARE_*` | **local `.env` only** | Never deploy these — see below |
+
+Set or rotate the secret (rotating invalidates every session):
+
+```sh
+openssl rand -base64 32 | wrangler secret put BETTER_AUTH_SECRET
+```
+
+> Do **not** upload `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_DATABASE_ID`, or `CLOUDFLARE_D1_TOKEN`. They
+> exist purely so `drizzle-kit studio` can reach remote D1 from your machine. `CLOUDFLARE_D1_TOKEN`
+> can read and write every D1 database on the account; putting it in the Worker would expose that to
+> any code-execution bug for no benefit.
+
+**Migrations do not run on deploy.** Run `pnpm db:migrate:remote` yourself before shipping a release
+that depends on a schema change.
+
+### Continuous deployment (Workers Builds)
+
+`wrangler` cannot connect a Git repo — this is done in the dashboard, and the Worker must already
+exist (deploy manually once first).
+
+1. Dashboard → **Workers & Pages** → `remote-svelte-app` → **Settings** → **Build**
+2. **Connect** → authorise the Cloudflare GitHub App → pick `MikeTeddyOmondi/remote-svelte-app`
+3. Branch `main`, root directory `/`
+4. Build command: `pnpm run build`
+5. Deploy command: `npx wrangler deploy`
+
+Two things that would otherwise break the first build:
+
+- The build must not depend on `.dev.vars`, which is gitignored. `build` is therefore plain
+  `vite build` — `wrangler types --check` lives in `pnpm check` instead, because `wrangler types`
+  derives `Env` from `.dev.vars` and would report "types are out of date" on every CI run.
+- Secrets are not in the repo. `BETTER_AUTH_SECRET` is already stored on the Worker and persists
+  across deploys, so CI needs nothing extra.
 
 ## UI
 
